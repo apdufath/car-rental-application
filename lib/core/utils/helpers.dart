@@ -36,6 +36,7 @@ class Helpers {
   // Appends the last updated timestamp as a query parameter.
   static String getCacheBustedUrl(String? url, DateTime? updatedAt) {
     if (url == null || url.isEmpty) return '';
+    if (url.startsWith('data:')) return url; // Base64 Data URIs do not need cache-busting and query params will corrupt them
     final timestamp = updatedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
     final separator = url.contains('?') ? '&' : '?';
     return '$url${separator}t=$timestamp';

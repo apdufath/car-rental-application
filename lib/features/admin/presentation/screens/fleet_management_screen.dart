@@ -49,7 +49,18 @@ class FleetManagementScreen extends ConsumerWidget {
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: car.images.isNotEmpty
-                        ? Image.network(car.images.first, width: 70, height: 45, fit: BoxFit.cover)
+                        ? Image.network(
+                            car.images.first,
+                            width: 70,
+                            height: 45,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: Colors.grey.shade200,
+                              width: 70,
+                              height: 45,
+                              child: const Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                            ),
+                          )
                         : Container(color: Colors.grey, width: 70, height: 45),
                   ),
                   title: Text('${car.brand} ${car.model} (${car.year})', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -184,6 +195,12 @@ class FleetManagementScreen extends ConsumerWidget {
                                 height: 150,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: Colors.grey.shade200,
+                                  height: 150,
+                                  width: double.infinity,
+                                  child: const Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                                ),
                               ),
                             ),
                             Positioned(

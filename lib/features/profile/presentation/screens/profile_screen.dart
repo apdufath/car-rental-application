@@ -450,7 +450,18 @@ class ProfileScreen extends ConsumerWidget {
                                         leading: ClipRRect(
                                           borderRadius: BorderRadius.circular(10),
                                           child: car.images.isNotEmpty
-                                              ? Image.network(car.images.first, width: 70, height: 48, fit: BoxFit.cover)
+                                              ? Image.network(
+                                                  car.images.first,
+                                                  width: 70,
+                                                  height: 48,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) => Container(
+                                                    color: Colors.grey.shade200,
+                                                    width: 70,
+                                                    height: 48,
+                                                    child: const Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                                                  ),
+                                                )
                                               : Container(color: Colors.grey, width: 70, height: 48),
                                         ),
                                         title: Text(

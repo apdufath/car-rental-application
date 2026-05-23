@@ -132,13 +132,19 @@ class _CarDetailScreenState extends ConsumerState<CarDetailScreen> {
                                   tag: 'car_img_${car.carId}',
                                   child: Container(
                                     padding: const EdgeInsets.fromLTRB(16, 60, 16, 40),
-                                    child: CachedNetworkImage(
-                                      imageUrl: imgUrl.isNotEmpty ? imgUrl : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600',
-                                      fit: BoxFit.contain,
-                                      width: double.infinity,
-                                      placeholder: (context, url) => const ShimmerCard(width: double.infinity, height: 280),
-                                      errorWidget: (context, url, err) => const Icon(Icons.broken_image, size: 48, color: AppColors.primary),
-                                    ),
+                                    child: imgUrl.startsWith('data:')
+                                        ? Image.network(
+                                            imgUrl,
+                                            fit: BoxFit.contain,
+                                            width: double.infinity,
+                                          )
+                                        : CachedNetworkImage(
+                                            imageUrl: imgUrl.isNotEmpty ? imgUrl : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600',
+                                            fit: BoxFit.contain,
+                                            width: double.infinity,
+                                            placeholder: (context, url) => const ShimmerCard(width: double.infinity, height: 280),
+                                            errorWidget: (context, url, err) => const Icon(Icons.broken_image, size: 48, color: AppColors.primary),
+                                          ),
                                   ),
                                 );
                               },

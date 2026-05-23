@@ -225,7 +225,16 @@ class _DocPreviewCard extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: const BorderRadius.only(topLeft: Radius.circular(11), topRight: Radius.circular(11)),
-              child: Image.network(imgUrl, width: double.infinity, fit: BoxFit.cover),
+              child: Image.network(
+                imgUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey.shade200,
+                  width: double.infinity,
+                  child: const Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                ),
+              ),
             ),
           ),
           Padding(

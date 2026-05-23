@@ -187,7 +187,18 @@ class _BookingsList extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: booking.carImageUrl != null
-                            ? Image.network(booking.carImageUrl!, width: 70, height: 50, fit: BoxFit.cover)
+                            ? Image.network(
+                                booking.carImageUrl!,
+                                width: 70,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: Colors.grey.shade200,
+                                  width: 70,
+                                  height: 50,
+                                  child: const Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                                ),
+                              )
                             : Container(color: Colors.grey.shade200, width: 70, height: 50, child: const Icon(Icons.car_rental)),
                       ),
                       const SizedBox(width: 16),

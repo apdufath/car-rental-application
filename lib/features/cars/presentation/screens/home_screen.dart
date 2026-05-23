@@ -551,14 +551,27 @@ class HomeScreen extends ConsumerWidget {
                                     children: [
                                       ClipRRect(
                                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                        child: CachedNetworkImage(
-                                          imageUrl: car.images.isNotEmpty ? car.images.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400',
-                                          height: 140,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          placeholder: (context, url) => const ShimmerCard(width: 240, height: 140),
-                                          errorWidget: (context, url, err) => Container(color: Colors.grey.shade100, child: const Icon(Icons.image)),
-                                        ),
+                                        child: car.images.isNotEmpty && car.images.first.startsWith('data:')
+                                            ? Image.network(
+                                                car.images.first,
+                                                height: 140,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => Container(
+                                                  color: Colors.grey.shade100,
+                                                  height: 140,
+                                                  width: double.infinity,
+                                                  child: const Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                                                ),
+                                              )
+                                            : CachedNetworkImage(
+                                                imageUrl: car.images.isNotEmpty ? car.images.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400',
+                                                height: 140,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => const ShimmerCard(width: 240, height: 140),
+                                                errorWidget: (context, url, err) => Container(color: Colors.grey.shade100, child: const Icon(Icons.image)),
+                                              ),
                                       ),
                                       // Verified Check badge
                                       Positioned(
