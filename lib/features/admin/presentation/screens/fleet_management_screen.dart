@@ -99,7 +99,7 @@ class FleetManagementScreen extends ConsumerWidget {
     final locationController = TextEditingController(text: car?.locationName ?? 'Jigjiga Yar, Hargeisa');
 
     CarCategory selectedCategory = car?.category ?? CarCategory.sedan;
-    String? currentImageUrl = car?.images.isNotEmpty == true ? car.images.first : null;
+    String? currentImageUrl = car?.images.isNotEmpty == true ? car?.images.first : null;
     bool isUploadingImage = false;
 
     showDialog(
