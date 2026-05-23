@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,15 +25,9 @@ class StorageService {
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } else {
-      // Offline/simulation mode mock URLs with unique time key to prevent cache mismatch
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      if (fileName.contains('profile')) {
-        return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&simulated_t=$timestamp';
-      } else if (fileName.contains('license')) {
-        return 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?auto=format&fit=crop&w=600&simulated_t=$timestamp';
-      } else {
-        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&simulated_t=$timestamp';
-      }
+      // Return a base64 Data URI so the actual image chosen by the user is rendered
+      final base64String = base64Encode(bytes);
+      return 'data:image/jpeg;base64,$base64String';
     }
   }
 }
