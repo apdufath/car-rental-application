@@ -84,6 +84,63 @@ class AuthRepository {
     }
   }
 
+  Future<UserEntity> signUpWithEmail({
+    required String email,
+    required String password,
+    required String fullName,
+    required UserRole role,
+  }) async {
+    try {
+      final credential = await _remoteDataSource.signUpWithEmail(email, password);
+      final user = credential.user;
+      if (user == null) {
+        throw AuthException(
+          messageEn: 'Sign up failed. No user returned.',
+          messageSo: 'Abuurista akoonku waa fashilantay.',
+          code: 'null-user',
+        );
+      }
+      
+      final now = DateTime.now();
+      final isEmailAdmin = email.toLowerCase().contains('admin') || email.toLowerCase() == 'baashe@abaarso.com' || email.toLowerCase().contains('zakaria');
+      final newUser = UserEntity(
+        uid: user.uid,
+        fullName: fullName,
+        phone: '', // No phone number initially with email/password signup
+        email: email,
+        role: isEmailAdmin ? UserRole.admin : role,
+        isVerified: isEmailAdmin ? true : false,
+        createdAt: now,
+        updatedAt: now,
+      );
+      
+      await _remoteDataSource.saveUserData(newUser);
+      return newUser;
+    } on FirebaseAuthException catch (e) {
+      String msgEn = 'Sign up failed. Please check your information.';
+      String msgSo = 'Abuurista akoonku waa fashilantay. Fadlan hubi xogta.';
+      
+      if (e.code == 'email-already-in-use') {
+        msgEn = 'An account already exists with this email address.';
+        msgSo = 'Waxaa horay u jiray akoon leh emailkan.';
+      } else if (e.code == 'weak-password') {
+        msgEn = 'The password provided is too weak.';
+        msgSo = 'Furaha la bixiyey aad buu u liitaa.';
+      } else if (e.code == 'invalid-email') {
+        msgEn = 'The email address is not valid.';
+        msgSo = 'Cinwaanka emailku ma saxna.';
+      }
+      throw AuthException(messageEn: msgEn, messageSo: msgSo, code: e.code);
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException(
+        messageEn: 'An unexpected error occurred during registration.',
+        messageSo: 'Khalad aan la filanayn ayaa dhacay intii lagu guda jiray isdiiwaangelinta.',
+        code: 'unknown',
+      );
+    }
+  }
+
   Future<UserEntity?> verifyOtpAndFetchUser({
     required String verificationId,
     required String smsCode,

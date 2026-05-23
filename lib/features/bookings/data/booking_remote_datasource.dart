@@ -53,8 +53,13 @@ class FirestoreBookingRemoteDataSource implements BookingRemoteDataSource {
     await _db.collection('bookings').doc(booking.bookingId).set(booking.toMap());
     
     // Also, if payment is paid immediately, update availability if active
-    if (booking.status == BookingStatus.active) {
-      await _db.collection('cars').doc(booking.carId).update({'isAvailable': false});
+    try {
+      if (booking.status == BookingStatus.active) {
+        await _db.collection('cars').doc(booking.carId).update({'isAvailable': false});
+      }
+    } catch (e) {
+      // Log warning but do not abort booking creation
+      print('Warning: Failed to update car availability during booking creation: $e');
     }
   }
 
@@ -63,14 +68,19 @@ class FirestoreBookingRemoteDataSource implements BookingRemoteDataSource {
     await _db.collection('bookings').doc(bookingId).update({'status': status.name});
     
     // Manage car availability based on booking status
-    final doc = await _db.collection('bookings').doc(bookingId).get();
-    if (doc.exists && doc.data() != null) {
-      final booking = BookingEntity.fromMap(doc.data()!);
-      if (status == BookingStatus.active) {
-        await _db.collection('cars').doc(booking.carId).update({'isAvailable': false});
-      } else if (status == BookingStatus.completed || status == BookingStatus.cancelled) {
-        await _db.collection('cars').doc(booking.carId).update({'isAvailable': true});
+    try {
+      final doc = await _db.collection('bookings').doc(bookingId).get();
+      if (doc.exists && doc.data() != null) {
+        final booking = BookingEntity.fromMap(doc.data()!);
+        if (status == BookingStatus.active) {
+          await _db.collection('cars').doc(booking.carId).update({'isAvailable': false});
+        } else if (status == BookingStatus.completed || status == BookingStatus.cancelled) {
+          await _db.collection('cars').doc(booking.carId).update({'isAvailable': true});
+        }
       }
+    } catch (e) {
+      // Log warning but do not abort booking status update
+      print('Warning: Failed to update car availability during status update: $e');
     }
   }
 

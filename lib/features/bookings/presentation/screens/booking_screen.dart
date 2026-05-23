@@ -306,8 +306,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               border: Border.all(color: Colors.grey.shade100),
                             ),
                             child: TableCalendar(
-                              firstDay: DateTime.now(),
-                              lastDay: DateTime.now().add(const Duration(days: 180)),
+                              firstDay: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+                              lastDay: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day).add(const Duration(days: 180)),
                               focusedDay: _focusedDay,
                               calendarFormat: _calendarFormat,
                               selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
@@ -678,7 +678,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                       letterSpacing: 0.5,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8),
                                   Icon(Icons.arrow_forward_rounded, size: 20),
                                 ],
                               ),
@@ -779,15 +779,36 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   void _handlePaymentAndBooking(BuildContext context, double totalCost, CarEntity car) async {
-    final phone = _phoneController.text.trim();
-    if (ref.read(bookingNotifierProvider).paymentMethod != PaymentMethod.cash && phone.isEmpty) {
+    final bookingNotifier = ref.read(bookingNotifierProvider.notifier);
+
+    // 1. Pre-flight validation checks before initiating payment to prevent charging for invalid requests
+    final validationError = bookingNotifier.validateBooking(
+      carId: widget.carId,
+      brandModel: '${car.brand} ${car.model}',
+      plateNumber: car.plateNumber,
+      pricePerDay: car.pricePerDay,
+    );
+
+    if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter phone number for payment / Geli lambarka lacag bixinta.')),
+        SnackBar(
+          content: Text(validationError['en']!),
+          backgroundColor: AppColors.cancelled,
+        ),
       );
       return;
     }
 
-    final bookingNotifier = ref.read(bookingNotifierProvider.notifier);
+    final phone = _phoneController.text.trim();
+    if (ref.read(bookingNotifierProvider).paymentMethod != PaymentMethod.cash && phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter phone number for payment.'),
+          backgroundColor: AppColors.cancelled,
+        ),
+      );
+      return;
+    }
 
     // Show elegant full screen payment status modal dialog
     showDialog(
@@ -842,9 +863,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         }
       } else {
         if (context.mounted) {
+          final checkoutState = ref.read(bookingNotifierProvider);
+          final errorMsg = checkoutState.errorEn ?? 'Payment succeeded but booking registration failed. Contact Admin.';
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Payment succeeded but booking registration failed. Contact Admin.'),
+            SnackBar(
+              content: Text(errorMsg),
               backgroundColor: AppColors.cancelled,
             ),
           );
@@ -854,7 +877,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(paymentRes.errorMessageEn ?? 'Payment failed / Lacag bixintu waa fashilantay.'),
+            content: Text(paymentRes.errorMessageEn ?? 'Payment failed.'),
             backgroundColor: AppColors.cancelled,
           ),
         );
@@ -907,7 +930,7 @@ class _PaymentModal extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              isCash ? 'Registering Cash Order...' : 'USSD Push Sent / Fariin Waa Loo Diray',
+              isCash ? 'Registering Cash Order...' : 'USSD Push Sent',
               style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),

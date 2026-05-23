@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_routes.dart';
-import '../providers/app_settings_provider.dart';
 import '../utils/helpers.dart';
 
 class MainNavigationWrapper extends ConsumerWidget {
@@ -18,9 +17,6 @@ class MainNavigationWrapper extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    // Check current locale
-    final isSomali = ref.watch(appSettingsProvider).locale.languageCode == 'so';
     
     // Determine selected index based on active route
     final String location = GoRouterState.of(context).uri.path;
@@ -74,26 +70,26 @@ class MainNavigationWrapper extends ConsumerWidget {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
           elevation: 0,
-          items: [
+          items: const [
             BottomNavigationBarItem(
-              icon: const Icon(Icons.home_rounded),
-              activeIcon: const Icon(Icons.home_rounded, color: AppColors.primary),
-              label: isSomali ? 'Hoyga' : 'Home',
+              icon: Icon(Icons.home_rounded),
+              activeIcon: Icon(Icons.home_rounded, color: AppColors.primary),
+              label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.search_rounded),
-              activeIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
-              label: isSomali ? 'Raadi' : 'Search',
+              icon: Icon(Icons.search_rounded),
+              activeIcon: Icon(Icons.search_rounded, color: AppColors.primary),
+              label: 'Search',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.calendar_today_rounded),
-              activeIcon: const Icon(Icons.calendar_today_rounded, color: AppColors.primary),
-              label: isSomali ? 'Dalabaadka' : 'Bookings',
+              icon: Icon(Icons.calendar_today_rounded),
+              activeIcon: Icon(Icons.calendar_today_rounded, color: AppColors.primary),
+              label: 'Bookings',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.person_rounded),
-              activeIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
-              label: isSomali ? 'Koontada' : 'Profile',
+              icon: Icon(Icons.person_rounded),
+              activeIcon: Icon(Icons.person_rounded, color: AppColors.primary),
+              label: 'Profile',
             ),
           ],
         ),

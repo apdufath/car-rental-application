@@ -29,6 +29,17 @@ class FirestoreSeederService {
         updatedAt: now.subtract(const Duration(days: 30)),
       ),
       UserEntity(
+        uid: 'baashe123',
+        fullName: 'Baashe',
+        phone: '+252637777777',
+        email: 'baashe@abaarso.com',
+        role: UserRole.admin,
+        profileImageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+        isVerified: true,
+        createdAt: now.subtract(const Duration(days: 30)),
+        updatedAt: now.subtract(const Duration(days: 30)),
+      ),
+      UserEntity(
         uid: 'customer123',
         fullName: 'Khadra Ali',
         phone: '+252635555555',

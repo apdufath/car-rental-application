@@ -171,6 +171,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String fullName,
+    required UserRole role,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessageEn: null, errorMessageSo: null);
+    try {
+      final newUser = await _repository.signUpWithEmail(
+        email: email,
+        password: password,
+        fullName: fullName,
+        role: role,
+      );
+      state = AuthState(user: newUser);
+    } on AuthException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessageEn: e.messageEn, errorMessageSo: e.messageSo);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessageEn: 'Failed to create account.',
+        errorMessageSo: 'Waa uu guuldarraystay abuurista akoonku.',
+      );
+    }
+  }
+
   Future<void> register({
     required String fullName,
     required String phone,

@@ -7,6 +7,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/widgets/shimmer_card.dart';
 import '../../../../core/widgets/custom_error_widget.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/utils/helpers.dart';
 import '../providers/cars_provider.dart';
 import '../../domain/car_entity.dart';
 
@@ -73,7 +74,7 @@ class HomeScreen extends ConsumerWidget {
                                 radius: 18,
                                 backgroundColor: Colors.white24,
                                 backgroundImage: authState.user?.profileImageUrl != null
-                                    ? NetworkImage(authState.user!.profileImageUrl!)
+                                    ? NetworkImage(Helpers.getCacheBustedUrl(authState.user!.profileImageUrl!, authState.user!.updatedAt))
                                     : null,
                                 child: authState.user?.profileImageUrl == null
                                     ? const Icon(Icons.person, color: Colors.white, size: 18)

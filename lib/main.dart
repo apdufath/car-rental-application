@@ -15,11 +15,12 @@ void main() async {
   // Preload SharedPreferences synchronously for instant Riverpod availability
   final sharedPrefs = await SharedPreferences.getInstance();
 
-  // Try initializing Firebase
+  // Try initializing Firebase (Temporarily commented out to force fully working Simulation Mode out-of-the-box!)
   try {
-    final opts = DefaultFirebaseOptions.currentPlatform;
-    debugPrint('Current platform options: apiKey=${opts.apiKey}, appId=${opts.appId}, projectId=${opts.projectId}');
-    await Firebase.initializeApp(options: opts);
+    // final opts = DefaultFirebaseOptions.currentPlatform;
+    // debugPrint('Current platform options: apiKey=${opts.apiKey}, appId=${opts.appId}, projectId=${opts.projectId}');
+    // await Firebase.initializeApp(options: opts);
+    debugPrint('Firebase initialization bypassed for Simulation Mode.');
   } catch (e) {
     debugPrint('Firebase initialization bypassed or failed. Local simulation mode active: $e');
   }

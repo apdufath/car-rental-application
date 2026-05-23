@@ -9,6 +9,7 @@ abstract class AuthRemoteDataSource {
   Future<void> sendOtp(String phone, Function(String verificationId, int? resendToken) onCodeSent, Function(FirebaseAuthException e) onError);
   Future<UserCredential> verifyOtp(String verificationId, String smsCode);
   Future<UserCredential> signInWithEmail(String email, String password);
+  Future<UserCredential> signUpWithEmail(String email, String password);
   Future<UserEntity?> getUserData(String uid);
   Future<void> saveUserData(UserEntity user);
   Future<void> updateKycDocuments({required String uid, required String licenseUrl, required String idCardUrl});
@@ -67,6 +68,11 @@ class FirebaseAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
     return await _auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
+  @override
+  Future<UserCredential> signUpWithEmail(String email, String password) async {
+    return await _auth.createUserWithEmailAndPassword(email: email, password: password);
   }
 
   @override
@@ -150,6 +156,27 @@ class SimulatedAuthRemoteDataSource implements AuthRemoteDataSource {
       createdAt: now,
       updatedAt: now,
     );
+    _simulatedDb['baashe123'] = UserEntity(
+      uid: 'baashe123',
+      fullName: 'Baashe',
+      phone: '+252637777777',
+      email: 'baashe@abaarso.com',
+      role: UserRole.admin,
+      isVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    _simulatedDb['zakaria123'] = UserEntity(
+      uid: 'zakaria123',
+      fullName: 'Zakaria123',
+      phone: '+252636666666',
+      email: 'zakaria@abaarso.com',
+      role: UserRole.admin,
+      isVerified: true,
+      profileImageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+      createdAt: now,
+      updatedAt: now,
+    );
     _simulatedDb['customer123'] = UserEntity(
       uid: 'customer123',
       fullName: 'Khadra Ali',
@@ -194,6 +221,25 @@ class SimulatedAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
+  Future<UserCredential> signUpWithEmail(String email, String password) async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    final sanitizedEmail = email.toLowerCase().trim();
+    // Check if email already exists
+    final exists = _simulatedDb.values.any((u) => u.email?.toLowerCase() == sanitizedEmail);
+    if (exists) {
+      throw FirebaseAuthException(
+        code: 'email-already-in-use',
+        message: 'The email address is already in use by another account.',
+      );
+    }
+    
+    final newUid = 'simulated_uid_${sanitizedEmail.hashCode}';
+    _currentUser = _SimulatedUser(uid: newUid, phoneNumber: null);
+    _controller.add(_currentUser);
+    return _SimulatedUserCredential(_currentUser!);
+  }
+
+  @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 600));
     // Find user in simulated DB by email
@@ -204,6 +250,7 @@ class SimulatedAuthRemoteDataSource implements AuthRemoteDataSource {
       // Auto-register new customer for offline testing/verification friction-free!
       final now = DateTime.now();
       final sanitizedEmail = email.toLowerCase().trim();
+      final isEmailAdmin = sanitizedEmail.contains('admin');
       final nameFromEmail = sanitizedEmail.split('@').first;
       final displayName = nameFromEmail.isNotEmpty 
           ? '${nameFromEmail[0].toUpperCase()}${nameFromEmail.substring(1)}'
@@ -215,8 +262,8 @@ class SimulatedAuthRemoteDataSource implements AuthRemoteDataSource {
         fullName: displayName,
         phone: '+252636666666',
         email: sanitizedEmail,
-        role: UserRole.customer,
-        isVerified: false,
+        role: isEmailAdmin ? UserRole.admin : UserRole.customer,
+        isVerified: isEmailAdmin ? true : false,
         createdAt: now,
         updatedAt: now,
       );

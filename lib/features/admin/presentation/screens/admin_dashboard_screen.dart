@@ -5,6 +5,9 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/providers/app_settings_provider.dart';
+import '../../../../core/utils/helpers.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../cars/presentation/providers/cars_provider.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../bookings/domain/booking_entity.dart';
@@ -17,6 +20,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final settings = ref.watch(appSettingsProvider);
 
     final carsAsync = ref.watch(carsListProvider);
     final bookingsAsync = ref.watch(adminBookingsProvider);
@@ -273,12 +277,175 @@ class AdminDashboardScreen extends ConsumerWidget {
                   subtitle: 'Send localized push notifications to users',
                   route: AppRoutes.adminNotifications,
                 ),
+                const SizedBox(height: 32),
+
+                // Settings & Preferences Section
+                Text(
+                  'SETTINGS & PREFERENCES',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceDark : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      _profileTile(
+                        icon: Icons.dark_mode_outlined,
+                        iconBg: const Color(0xFFFBF4DB), // Light yellow
+                        iconColor: const Color(0xFF8B7500),
+                        title: 'Dark Mode / Habka Madow',
+                        subtitle: 'Toggle app colors / Beddel midabada',
+                        trailing: Switch(
+                          value: settings.themeMode == ThemeMode.dark,
+                          activeThumbColor: AppColors.primary,
+                          onChanged: (val) {
+                            Helpers.triggerHapticLight();
+                            ref.read(appSettingsProvider.notifier).toggleTheme(val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Account Management Section
+                Text(
+                  'ACCOUNT MANAGEMENT',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceDark : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      _profileTile(
+                        icon: Icons.logout_rounded,
+                        iconBg: const Color(0xFFFFEBEE), // Soft red
+                        iconColor: AppColors.cancelled,
+                        title: 'Sign Out / Log Out',
+                        subtitle: 'Safely exit the app',
+                        onTap: () async {
+                          Helpers.triggerHapticLight();
+                          await ref.read(authNotifierProvider.notifier).logout();
+                          if (context.mounted) {
+                            context.go(AppRoutes.login);
+                          }
+                        },
+                      ),
+                      _divider(isDark),
+                      _profileTile(
+                        icon: Icons.delete_forever_rounded,
+                        iconBg: const Color(0xFFF3F3F3), // Soft grey
+                        iconColor: Colors.grey.shade700,
+                        title: 'Delete Account',
+                        subtitle: 'Irreversibly delete account data',
+                        onTap: () {
+                          _showDeleteDialog(context, ref);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
         },
         error: (e, st) => Center(child: Text('Error: ${e.toString()}')),
         loading: () => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+
+  Widget _divider(bool isDark) {
+    return Divider(
+      height: 1,
+      color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+      indent: 68,
+    );
+  }
+
+  Widget _profileTile({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: iconBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: Colors.grey.shade500,
+          fontSize: 11,
+        ),
+      ),
+      trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Account?'),
+        content: const Text('This operation is irreversible. All of your bookings, records, and KYC uploads will be deleted permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              Helpers.triggerHapticLight();
+              await ref.read(authNotifierProvider.notifier).deleteAccount();
+              if (context.mounted) {
+                context.go(AppRoutes.login);
+              }
+            },
+            child: const Text('Yes, Delete', style: TextStyle(color: AppColors.cancelled)),
+          ),
+        ],
       ),
     );
   }

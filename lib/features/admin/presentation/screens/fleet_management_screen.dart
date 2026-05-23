@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../cars/presentation/providers/cars_provider.dart';
 import '../../../cars/domain/car_entity.dart';
 
@@ -95,137 +97,305 @@ class FleetManagementScreen extends ConsumerWidget {
     final plateController = TextEditingController(text: car?.plateNumber ?? '');
     final priceController = TextEditingController(text: car?.pricePerDay.toString() ?? '');
     final locationController = TextEditingController(text: car?.locationName ?? 'Jigjiga Yar, Hargeisa');
-    final imageController = TextEditingController(text: car?.images.isNotEmpty == true ? car!.images.first : '');
 
     CarCategory selectedCategory = car?.category ?? CarCategory.sedan;
+    String? currentImageUrl = car?.images.isNotEmpty == true ? car.images.first : null;
+    bool isUploadingImage = false;
 
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text(car == null ? 'Add Vehicle' : 'Edit Vehicle'),
-        content: SizedBox(
-          width: 400,
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  DropdownButtonFormField<CarCategory>(
-                    initialValue: selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Category'),
-                    items: CarCategory.values.map((cat) {
-                      return DropdownMenuItem(value: cat, child: Text(cat.name.toUpperCase()));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) selectedCategory = val;
-                    },
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
+          return AlertDialog(
+            title: Text(car == null ? 'Add Vehicle' : 'Edit Vehicle'),
+            content: SizedBox(
+              width: 400,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      DropdownButtonFormField<CarCategory>(
+                        initialValue: selectedCategory,
+                        decoration: const InputDecoration(labelText: 'Category'),
+                        items: CarCategory.values.map((cat) {
+                          return DropdownMenuItem(value: cat, child: Text(cat.name.toUpperCase()));
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) selectedCategory = val;
+                        },
+                      ),
+                      TextFormField(
+                        controller: brandController,
+                        decoration: const InputDecoration(labelText: 'Brand (e.g. Toyota)'),
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: modelController,
+                        decoration: const InputDecoration(labelText: 'Model (e.g. Hilux)'),
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: yearController,
+                        decoration: const InputDecoration(labelText: 'Year'),
+                        keyboardType: TextInputType.number,
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: colorController,
+                        decoration: const InputDecoration(labelText: 'Color'),
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: plateController,
+                        decoration: const InputDecoration(labelText: 'Plate Number (e.g. SL 1234 HR)'),
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: priceController,
+                        decoration: const InputDecoration(labelText: 'Price Per Day (USD)'),
+                        keyboardType: TextInputType.number,
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: locationController,
+                        decoration: const InputDecoration(labelText: 'Location Name'),
+                        validator: (val) => val?.isEmpty == true ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Image Upload Section
+                      if (isUploadingImage)
+                        const SizedBox(
+                          height: 120,
+                          child: Center(
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          ),
+                        )
+                      else if (currentImageUrl != null && currentImageUrl!.isNotEmpty)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                currentImageUrl!,
+                                height: 150,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    currentImageUrl = null;
+                                  });
+                                },
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.black.withOpacity(0.6),
+                                  radius: 16,
+                                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 8,
+                              left: 8,
+                              right: 8,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                                  label: const Text(
+                                    'Change Image / Beddel Sawirka',
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () async {
+                                    final picker = ImagePicker();
+                                    final XFile? pickedFile = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      maxWidth: 800,
+                                      maxHeight: 800,
+                                      imageQuality: 85,
+                                    );
+                                    if (pickedFile != null) {
+                                      setState(() {
+                                        isUploadingImage = true;
+                                      });
+                                      try {
+                                        final bytes = await pickedFile.readAsBytes();
+                                        final storage = ref.read(storageServiceProvider);
+                                        final uploadedUrl = await storage.uploadBytes(
+                                          uid: 'admin_vehicle',
+                                          fileName: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
+                                          bytes: bytes,
+                                        );
+                                        setState(() {
+                                          currentImageUrl = uploadedUrl;
+                                          isUploadingImage = false;
+                                        });
+                                      } catch (e) {
+                                        setState(() {
+                                          isUploadingImage = false;
+                                        });
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Upload failed: $e'),
+                                              backgroundColor: AppColors.cancelled,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        InkWell(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final XFile? pickedFile = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 800,
+                              maxHeight: 800,
+                              imageQuality: 85,
+                            );
+                            if (pickedFile != null) {
+                              setState(() {
+                                isUploadingImage = true;
+                              });
+                              try {
+                                final bytes = await pickedFile.readAsBytes();
+                                final storage = ref.read(storageServiceProvider);
+                                final uploadedUrl = await storage.uploadBytes(
+                                  uid: 'admin_vehicle',
+                                  fileName: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
+                                  bytes: bytes,
+                                );
+                                setState(() {
+                                  currentImageUrl = uploadedUrl;
+                                  isUploadingImage = false;
+                                });
+                              } catch (e) {
+                                setState(() {
+                                  isUploadingImage = false;
+                                });
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Upload failed: $e'),
+                                      backgroundColor: AppColors.cancelled,
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          child: Container(
+                            height: 120,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 32),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Upload Vehicle Image / Gudbi Sawirka',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Select an image of the car',
+                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  TextFormField(
-                    controller: brandController,
-                    decoration: const InputDecoration(labelText: 'Brand (e.g. Toyota)'),
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: modelController,
-                    decoration: const InputDecoration(labelText: 'Model (e.g. Hilux)'),
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: yearController,
-                    decoration: const InputDecoration(labelText: 'Year'),
-                    keyboardType: TextInputType.number,
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: colorController,
-                    decoration: const InputDecoration(labelText: 'Color'),
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: plateController,
-                    decoration: const InputDecoration(labelText: 'Plate Number (e.g. SL 1234 HR)'),
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: priceController,
-                    decoration: const InputDecoration(labelText: 'Price Per Day (USD)'),
-                    keyboardType: TextInputType.number,
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: locationController,
-                    decoration: const InputDecoration(labelText: 'Location Name'),
-                    validator: (val) => val?.isEmpty == true ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: imageController,
-                    decoration: const InputDecoration(labelText: 'Image URL'),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() == true) {
-                final brand = brandController.text.trim();
-                final model = modelController.text.trim();
-                final year = int.tryParse(yearController.text.trim()) ?? 2020;
-                final color = colorController.text.trim();
-                final plate = plateController.text.trim();
-                final price = double.tryParse(priceController.text.trim()) ?? 20.0;
-                final locName = locationController.text.trim();
-                final img = imageController.text.trim();
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (formKey.currentState?.validate() == true) {
+                    final brand = brandController.text.trim();
+                    final model = modelController.text.trim();
+                    final year = int.tryParse(yearController.text.trim()) ?? 2020;
+                    final color = colorController.text.trim();
+                    final plate = plateController.text.trim();
+                    final price = double.tryParse(priceController.text.trim()) ?? 20.0;
+                    final locName = locationController.text.trim();
+                    final img = currentImageUrl ?? '';
 
-                final finalImg = img.isNotEmpty
-                    ? img
-                    : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600';
+                    final finalImg = img.isNotEmpty
+                        ? img
+                        : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600';
 
-                final newCar = CarEntity(
-                  carId: car?.carId ?? 'car_${DateTime.now().millisecondsSinceEpoch}',
-                  brand: brand,
-                  model: model,
-                  year: year,
-                  color: color,
-                  plateNumber: plate,
-                  category: selectedCategory,
-                  pricePerDay: price,
-                  currency: 'USD',
-                  isAvailable: car?.isAvailable ?? true,
-                  features: car?.features ?? ['AC', 'Automatic', 'Bluetooth'],
-                  images: [finalImg],
-                  location: car?.location ?? const LocationPoint(9.5624, 44.0770),
-                  locationName: locName,
-                  ownerId: 'admin123',
-                  averageRating: car?.averageRating ?? 5.0,
-                  totalReviews: car?.totalReviews ?? 1,
-                  createdAt: car?.createdAt ?? DateTime.now(),
-                );
+                    final newCar = CarEntity(
+                      carId: car?.carId ?? 'car_${DateTime.now().millisecondsSinceEpoch}',
+                      brand: brand,
+                      model: model,
+                      year: year,
+                      color: color,
+                      plateNumber: plate,
+                      category: selectedCategory,
+                      pricePerDay: price,
+                      currency: 'USD',
+                      isAvailable: car?.isAvailable ?? true,
+                      features: car?.features ?? ['AC', 'Automatic', 'Bluetooth'],
+                      images: [finalImg],
+                      location: car?.location ?? const LocationPoint(9.5624, 44.0770),
+                      locationName: locName,
+                      ownerId: 'admin123',
+                      averageRating: car?.averageRating ?? 5.0,
+                      totalReviews: car?.totalReviews ?? 1,
+                      createdAt: car?.createdAt ?? DateTime.now(),
+                    );
 
-                final repo = ref.read(carRepositoryProvider);
-                if (car == null) {
-                  await repo.createCar(newCar);
-                } else {
-                  await repo.updateCar(newCar);
-                }
+                    final repo = ref.read(carRepositoryProvider);
+                    if (car == null) {
+                      await repo.createCar(newCar);
+                    } else {
+                      await repo.updateCar(newCar);
+                    }
 
-                // Invalidate cache
-                ref.invalidate(carsListProvider);
-                if (dialogCtx.mounted) {
-                  Navigator.pop(dialogCtx);
-                }
-                Helpers.triggerHapticLight();
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+                    // Invalidate cache
+                    ref.invalidate(carsListProvider);
+                    if (dialogCtx.mounted) {
+                      Navigator.pop(dialogCtx);
+                    }
+                    Helpers.triggerHapticLight();
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

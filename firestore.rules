@@ -32,20 +32,27 @@ service cloud.firestore {
     // - Only admins can write, edit, create or delete vehicle documents
     match /cars/{carId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAvailable']));
     }
 
     // Bookings Collection
     // - Authenticated users can create bookings
-    // - Users can read their own bookings
+    // - Authenticated users can read bookings (needed to calculate date availability)
     // - Admins can read, update (approve/reject/complete) and delete all bookings
     match /bookings/{bookingId} {
       allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        isOwner(resource.data.userId) && 
-        request.resource.data.status == 'cancelled' && 
-        resource.data.status == 'pending'
+        isOwner(resource.data.userId) && (
+          // Case 1: Cancellation by owner
+          (request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
+          // Case 2: Payment and status update by owner on checkout
+          (
+            (request.resource.data.status == 'confirmed' || request.resource.data.status == 'pending') &&
+            (request.resource.data.paymentStatus == 'paid' || request.resource.data.paymentStatus == 'unpaid')
+          )
+        )
       ) || isAdmin();
       allow delete: if isAdmin();
     }

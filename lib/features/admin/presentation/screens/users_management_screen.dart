@@ -41,7 +41,7 @@ class UsersManagementScreen extends ConsumerWidget {
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withOpacity(0.1),
                     backgroundImage: user.profileImageUrl != null
-                        ? NetworkImage(user.profileImageUrl!)
+                        ? NetworkImage(Helpers.getCacheBustedUrl(user.profileImageUrl!, user.updatedAt))
                         : null,
                     child: user.profileImageUrl == null
                         ? const Icon(Icons.person, color: AppColors.primary)
@@ -121,7 +121,7 @@ class UsersManagementScreen extends ConsumerWidget {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: AppColors.primary,
-                  backgroundImage: user.profileImageUrl != null ? NetworkImage(user.profileImageUrl!) : null,
+                  backgroundImage: user.profileImageUrl != null ? NetworkImage(Helpers.getCacheBustedUrl(user.profileImageUrl!, user.updatedAt)) : null,
                   child: user.profileImageUrl == null ? const Icon(Icons.person, color: Colors.white, size: 30) : null,
                 ),
                 const SizedBox(width: 16),

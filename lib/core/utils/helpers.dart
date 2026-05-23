@@ -31,4 +31,13 @@ class Helpers {
     }
     return 'https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=$zoom&size=600x300&markers=color:red%7C$latitude,$longitude&key=$apiKey';
   }
+
+  // Generates a cache-busted URL for network images (like avatars) to resolve local caching issues.
+  // Appends the last updated timestamp as a query parameter.
+  static String getCacheBustedUrl(String? url, DateTime? updatedAt) {
+    if (url == null || url.isEmpty) return '';
+    final timestamp = updatedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+    final separator = url.contains('?') ? '&' : '?';
+    return '$url${separator}t=$timestamp';
+  }
 }

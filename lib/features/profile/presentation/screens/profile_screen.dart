@@ -1,17 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/app_settings_provider.dart';
 import '../../../../core/utils/helpers.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../auth/domain/user_entity.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../cars/presentation/providers/cars_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  Future<void> _updateProfilePicture(BuildContext context, WidgetRef ref, String uid) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      // Show temporary loading indicator dialog
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppColors.accent),
+        ),
+      );
+
+      final bytes = await image.readAsBytes();
+      final storage = ref.read(storageServiceProvider);
+      final photoUrl = await storage.uploadBytes(
+        uid: uid,
+        fileName: 'profile.jpg',
+        bytes: bytes,
+      );
+
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+      await authNotifier.uploadProfilePhoto(photoUrl);
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      Helpers.triggerHapticSuccess();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture updated successfully!')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog if open
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile picture: $e'), backgroundColor: AppColors.cancelled),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,7 +71,6 @@ class ProfileScreen extends ConsumerWidget {
     final user = authState.user;
 
     final settings = ref.watch(appSettingsProvider);
-    final isSomalLang = settings.locale.languageCode == 'so';
 
     final favoriteIds = ref.watch(favoriteCarsProvider);
     final carsAsync = ref.watch(carsListProvider);
@@ -30,20 +79,20 @@ class ProfileScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF8F9FA),
       body: user == null
           ? Scaffold(
-              appBar: AppBar(title: Text(isSomalLang ? 'Koontada' : 'Profile Settings')),
+              appBar: AppBar(title: const Text('Profile Settings')),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.account_circle_outlined, size: 64, color: Colors.grey),
                     const SizedBox(height: 16),
-                    Text(
-                      isSomalLang ? 'Fadlan gal koontadaada' : 'Please log in to view profile.',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    const Text(
+                      'Please log in to view profile.',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     CustomButton(
-                      text: isSomalLang ? 'Soo Gal' : 'Log In',
+                      text: 'Log In',
                       onPressed: () => context.go(AppRoutes.login),
                     ),
                   ],
@@ -63,7 +112,7 @@ class ProfileScreen extends ConsumerWidget {
                         width: double.infinity,
                         height: 280,
                         decoration: const BoxDecoration(
-                          color: AppColors.primary,
+                        color: AppColors.primary,
                           borderRadius: BorderRadius.only(
                             bottomLeft: Radius.circular(36),
                             bottomRight: Radius.circular(36),
@@ -77,9 +126,9 @@ class ProfileScreen extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Icon(Icons.menu_rounded, color: Colors.white, size: 28),
-                                Text(
-                                  isSomalLang ? 'Koontada' : 'My Profile',
-                                  style: const TextStyle(
+                                const Text(
+                                  'My Profile',
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
@@ -94,40 +143,43 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 16),
                             // Sandy yellow ring surrounding user avatar
-                            Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.accent,
-                                    shape: BoxShape.circle,
+                            GestureDetector(
+                              onTap: () => _updateProfilePicture(context, ref, user.uid),
+                              child: Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.accent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 46,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage: user.profileImageUrl != null
+                                          ? NetworkImage(Helpers.getCacheBustedUrl(user.profileImageUrl!, user.updatedAt))
+                                          : null,
+                                      child: user.profileImageUrl == null
+                                          ? const Icon(Icons.person, color: AppColors.primary, size: 46)
+                                          : null,
+                                    ),
                                   ),
-                                  child: CircleAvatar(
-                                    radius: 46,
-                                    backgroundColor: Colors.white,
-                                    backgroundImage: user.profileImageUrl != null
-                                        ? NetworkImage(user.profileImageUrl!)
-                                        : null,
-                                    child: user.profileImageUrl == null
-                                        ? const Icon(Icons.person, color: AppColors.primary, size: 46)
-                                        : null,
+                                  // Edit pencil overlay button
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.accent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit_rounded,
+                                      color: AppColors.secondary,
+                                      size: 14,
+                                    ),
                                   ),
-                                ),
-                                // Edit pencil overlay button
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.edit_rounded,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 12),
                             // User Name
@@ -162,9 +214,7 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  user.isVerified
-                                      ? (isSomalLang ? 'LA HUBIYAY' : 'VERIFIED')
-                                      : (isSomalLang ? 'IN PENDING' : 'PENDING'),
+                                  user.isVerified ? 'VERIFIED' : 'PENDING',
                                   style: TextStyle(
                                     color: user.isVerified ? AppColors.accent : Colors.white70,
                                     fontWeight: FontWeight.bold,
@@ -198,11 +248,11 @@ class ProfileScreen extends ConsumerWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _statCol('12', isSomalLang ? 'Safar' : 'Trips', Icons.directions_car_rounded),
+                              _statCol('12', 'Trips', Icons.directions_car_rounded),
                               _verticalDivider(),
-                              _statCol('4.9', isSomalLang ? 'Qiimayn' : 'Rating', Icons.star_rounded),
+                              _statCol('4.9', 'Rating', Icons.star_rounded),
                               _verticalDivider(),
-                              _statCol(favoriteIds.length.toString(), isSomalLang ? 'Lagu Keydiyay' : 'Saved', Icons.favorite_rounded),
+                              _statCol(favoriteIds.length.toString(), 'Saved', Icons.favorite_rounded),
                             ],
                           ),
                         ),
@@ -282,7 +332,7 @@ class ProfileScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isSomalLang ? 'DOORASHADA KOONTADA' : 'ACCOUNT PREFERENCES',
+                          'ACCOUNT PREFERENCES',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontWeight: FontWeight.bold,
@@ -305,16 +355,16 @@ class ProfileScreen extends ConsumerWidget {
                                 icon: Icons.person_outline_rounded,
                                 iconBg: const Color(0xFFE2EBE7), // Light green
                                 iconColor: AppColors.primary,
-                                title: isSomalLang ? 'Xogta Shakhsiga' : 'Personal Info',
-                                subtitle: isSomalLang ? 'Magaca, Lambarka & KYC' : 'Manage your contact details',
+                                title: 'Personal Info',
+                                subtitle: 'Manage your contact details',
                               ),
                               _divider(),
                               _profileTile(
                                 icon: Icons.history_rounded,
                                 iconBg: const Color(0xFFFBF4DB), // Light yellow
                                 iconColor: const Color(0xFF8B7500),
-                                title: isSomalLang ? 'Dalabaadkayga' : 'My Bookings',
-                                subtitle: isSomalLang ? 'Eeg dhammaan safarada' : 'History of car rentals',
+                                title: 'My Bookings',
+                                subtitle: 'History of car rentals',
                                 onTap: () => context.go(AppRoutes.bookings),
                               ),
                               _divider(),
@@ -322,45 +372,22 @@ class ProfileScreen extends ConsumerWidget {
                                 icon: Icons.credit_card_rounded,
                                 iconBg: const Color(0xFFE2EBE7), // Light green
                                 iconColor: AppColors.primary,
-                                title: isSomalLang ? 'Habka Lacag Bixinta' : 'Payment Settings',
-                                subtitle: isSomalLang ? 'Maamul EVC/Zaad profiles' : 'Configured push accounts',
+                                title: 'Payment Settings',
+                                subtitle: 'Configured push accounts',
                               ),
                               _divider(),
                               _profileTile(
                                 icon: Icons.dark_mode_outlined,
                                 iconBg: const Color(0xFFFBF4DB), // Light yellow
                                 iconColor: const Color(0xFF8B7500),
-                                title: isSomalLang ? 'Habka Habeenkii' : 'Dark Mode',
-                                subtitle: isSomalLang ? 'Tir/Daar habka habeenkii' : 'Toggle app colors',
+                                title: 'Dark Mode',
+                                subtitle: 'Toggle app colors',
                                 trailing: Switch(
                                   value: settings.themeMode == ThemeMode.dark,
                                   activeThumbColor: AppColors.primary,
                                   onChanged: (val) {
                                     Helpers.triggerHapticLight();
                                     ref.read(appSettingsProvider.notifier).toggleTheme(val);
-                                  },
-                                ),
-                              ),
-                              _divider(),
-                              _profileTile(
-                                icon: Icons.language_rounded,
-                                iconBg: const Color(0xFFE2EBE7), // Light green
-                                iconColor: AppColors.primary,
-                                title: isSomalLang ? 'Luuqada' : 'App Language',
-                                subtitle: isSomalLang ? 'Af-Soomaali ah' : 'Currently English',
-                                trailing: DropdownButton<String>(
-                                  value: settings.locale.languageCode,
-                                  underline: const SizedBox(),
-                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
-                                  items: const [
-                                    DropdownMenuItem(value: 'en', child: Text('English', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                    DropdownMenuItem(value: 'so', child: Text('Soomaali', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                                  ],
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      Helpers.triggerHapticLight();
-                                      ref.read(appSettingsProvider.notifier).setLocale(val);
-                                    }
                                   },
                                 ),
                               ),
@@ -371,7 +398,7 @@ class ProfileScreen extends ConsumerWidget {
 
                         // 4. Favorite cars section
                         Text(
-                          isSomalLang ? 'MUUQAALADA AAD JECESHAHAY' : 'MY SAVED VEHICLES',
+                          'MY SAVED VEHICLES',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontWeight: FontWeight.bold,
@@ -398,7 +425,7 @@ class ProfileScreen extends ConsumerWidget {
                                       Icon(Icons.favorite_border_rounded, color: Colors.grey.shade300, size: 36),
                                       const SizedBox(height: 10),
                                       Text(
-                                        isSomalLang ? 'Ma jiraan baabuur aad keydsatay.' : 'No favorited cars yet.',
+                                        'No favorited cars yet.',
                                         style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.w600),
                                       ),
                                     ],
@@ -459,7 +486,7 @@ class ProfileScreen extends ConsumerWidget {
 
                         // 5. Account operations
                         Text(
-                          isSomalLang ? 'QAYBTA KOONTADA' : 'ACCOUNT MANAGEMENT',
+                          'ACCOUNT MANAGEMENT',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontWeight: FontWeight.bold,
@@ -481,8 +508,8 @@ class ProfileScreen extends ConsumerWidget {
                                 icon: Icons.logout_rounded,
                                 iconBg: const Color(0xFFFFEBEE), // Soft red
                                 iconColor: AppColors.cancelled,
-                                title: isSomalLang ? 'Ka Bax' : 'Sign Out / Log Out',
-                                subtitle: isSomalLang ? 'Ka bax koontadaada' : 'Safely exit the app',
+                                title: 'Sign Out / Log Out',
+                                subtitle: 'Safely exit the app',
                                 onTap: () async {
                                   Helpers.triggerHapticLight();
                                   await ref.read(authNotifierProvider.notifier).logout();
@@ -496,10 +523,10 @@ class ProfileScreen extends ConsumerWidget {
                                 icon: Icons.delete_forever_rounded,
                                 iconBg: const Color(0xFFF3F3F3), // Soft grey
                                 iconColor: Colors.grey.shade700,
-                                title: isSomalLang ? 'Tir Akoonka' : 'Delete Account',
-                                subtitle: isSomalLang ? 'Tir akoonka waligaa' : 'Irreversibly delete account data',
+                                title: 'Delete Account',
+                                subtitle: 'Irreversibly delete account data',
                                 onTap: () {
-                                  _showDeleteDialog(context, ref, isSomalLang);
+                                  _showDeleteDialog(context, ref);
                                 },
                               ),
                             ],
@@ -601,18 +628,16 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, WidgetRef ref, bool isSomalLang) {
+  void _showDeleteDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: Text(isSomalLang ? 'Ma hubtaa?' : 'Delete Account?'),
-        content: Text(isSomalLang
-            ? 'Qaladkan dib looma soo celin karo. Akoonkaaga iyo dhammaan xogtaadu waa la tiri doonaa.'
-            : 'This operation is irreversible. All of your bookings, records, and KYC uploads will be deleted permanently.'),
+        title: const Text('Delete Account?'),
+        content: const Text('This operation is irreversible. All of your bookings, records, and KYC uploads will be deleted permanently.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: Text(isSomalLang ? 'Maya' : 'Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
@@ -623,7 +648,7 @@ class ProfileScreen extends ConsumerWidget {
                 context.go(AppRoutes.login);
               }
             },
-            child: Text(isSomalLang ? 'Hubaal, Tir' : 'Yes, Delete', style: const TextStyle(color: AppColors.cancelled)),
+            child: const Text('Yes, Delete', style: TextStyle(color: AppColors.cancelled)),
           ),
         ],
       ),

@@ -8,6 +8,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/services/storage_service.dart';
 import '../providers/auth_provider.dart';
 import '../../domain/user_entity.dart';
 
@@ -24,6 +25,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Uint8List? _profileImageBytes;
   Uint8List? _licenseImageBytes;
   Uint8List? _idCardImageBytes;
+  bool _localLoading = false;
 
   Future<void> _pickImage(String type) async {
     try {
@@ -56,7 +58,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
   }
 
-  void _submitKYC() {
+  Future<void> _submitKYC() async {
     if (_profileImageBytes == null) {
       _showWarning('Please select a profile photo.');
       return;
@@ -70,38 +72,77 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       return;
     }
 
-    final authNotifier = ref.read(authNotifierProvider.notifier);
-    
-    // Simulate image uploading by generating mock web paths for the files
-    // In production, these are uploaded to Firebase Storage and return URLs
-    final mockProfileUrl = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150';
-    final mockLicenseUrl = 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?auto=format&fit=crop&w=600';
-    final mockIdUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600';
+    final authState = ref.read(authNotifierProvider);
+    final user = authState.user;
+    if (user == null) {
+      _showWarning('User session not found. Please log in again.');
+      return;
+    }
 
-    authNotifier.uploadProfilePhoto(mockProfileUrl).then((_) {
-      if (!context.mounted) return;
-      authNotifier.uploadKyc(
-        licenseUrl: mockLicenseUrl,
-        idCardUrl: mockIdUrl,
-      ).then((_) {
-        if (!context.mounted) return;
-        final authState = ref.read(authNotifierProvider);
-        if (authState.errorMessageEn == null) {
-          Helpers.triggerHapticSuccess();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verification files uploaded successfully! KYC verification is pending.')),
-          );
-          
-          if (authState.user?.role == UserRole.admin) {
-            context.go(AppRoutes.adminDashboard);
-          } else {
-            context.go(AppRoutes.home);
-          }
-        } else {
-          _showWarning(authState.errorMessageEn!);
-        }
-      });
+    setState(() {
+      _localLoading = true;
     });
+
+    try {
+      final storageService = ref.read(storageServiceProvider);
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+
+      // Upload profile image to Firebase Storage
+      final profileUrl = await storageService.uploadBytes(
+        uid: user.uid,
+        fileName: 'profile.jpg',
+        bytes: _profileImageBytes!,
+      );
+
+      // Upload license document to Firebase Storage
+      final licenseUrl = await storageService.uploadBytes(
+        uid: user.uid,
+        fileName: 'license.jpg',
+        bytes: _licenseImageBytes!,
+      );
+
+      // Upload ID card document to Firebase Storage
+      final idCardUrl = await storageService.uploadBytes(
+        uid: user.uid,
+        fileName: 'id_card.jpg',
+        bytes: _idCardImageBytes!,
+      );
+
+      // Save URLs and complete verification in Firestore
+      await authNotifier.uploadProfilePhoto(profileUrl);
+      await authNotifier.uploadKyc(
+        licenseUrl: licenseUrl,
+        idCardUrl: idCardUrl,
+      );
+
+      if (!mounted) return;
+
+      final updatedAuthState = ref.read(authNotifierProvider);
+      if (updatedAuthState.errorMessageEn == null) {
+        Helpers.triggerHapticSuccess();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verification files uploaded successfully! KYC verification is pending.')),
+        );
+        
+        if (updatedAuthState.user?.role == UserRole.admin) {
+          context.go(AppRoutes.adminDashboard);
+        } else {
+          context.go(AppRoutes.home);
+        }
+      } else {
+        _showWarning(updatedAuthState.errorMessageEn!);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showWarning('Failed to upload files to storage. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _localLoading = false;
+        });
+      }
+    }
   }
 
   void _showWarning(String message) {
@@ -133,7 +174,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         ],
       ),
       body: LoadingOverlay(
-        isLoading: authState.isLoading,
+        isLoading: authState.isLoading || _localLoading,
         message: 'Uploading verification documents...',
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

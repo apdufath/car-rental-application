@@ -38,7 +38,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       : super(
           AppSettingsState(
             themeMode: (_prefs.getBool('is_dark_theme') ?? false) ? ThemeMode.dark : ThemeMode.light,
-            locale: Locale(_prefs.getString('language_code') ?? 'en'),
+            locale: const Locale('en'),
             isFirstRun: _prefs.getBool(AppStrings.keyFirstRun) ?? true,
           ),
         );
@@ -49,8 +49,8 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   }
 
   Future<void> setLocale(String langCode) async {
-    await _prefs.setString('language_code', langCode);
-    state = state.copyWith(locale: Locale(langCode));
+    await _prefs.setString('language_code', 'en');
+    state = state.copyWith(locale: const Locale('en'));
   }
 
   Future<void> completeOnboarding() async {

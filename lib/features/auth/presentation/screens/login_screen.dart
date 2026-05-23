@@ -57,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           }
         } else {
           Helpers.triggerHapticError();
-          _showError(authState.errorMessageSo ?? authState.errorMessageEn!);
+          _showError(authState.errorMessageEn!);
         }
       });
     }
@@ -91,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: LoadingOverlay(
         isLoading: authState.isLoading,
-        message: 'Signing in / Galayaa...',
+        message: 'Signing in...',
         child: Stack(
           children: [
             // Elegant background soft gradient spheres
@@ -163,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Premium Vehicle Leasing / Kireysiga Gawaarida',
+                        'Premium Vehicle Leasing',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -196,7 +196,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Sign In / Soo Gal',
+                                'Sign In',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -208,13 +208,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: const InputDecoration(
-                                  labelText: 'Email Address / Email-ka',
+                                  labelText: 'Email Address',
                                   hintText: 'e.g. name@domain.com',
                                   prefixIcon: Icon(Icons.email_outlined),
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) {
-                                    return 'Please enter your email / Fadlan geli email-ka';
+                                    return 'Please enter your email';
                                   }
                                   final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                                   if (!emailRegex.hasMatch(val.trim())) {
@@ -230,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 decoration: InputDecoration(
-                                  labelText: 'Password / Furaha qaranka',
+                                  labelText: 'Password',
                                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                                   suffixIcon: IconButton(
                                     icon: Icon(
@@ -247,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                                 validator: (val) {
                                   if (val == null || val.isEmpty) {
-                                    return 'Please enter your password / Fadlan geli furaha';
+                                    return 'Please enter your password';
                                   }
                                   if (val.length < 6) {
                                     return 'Password must be at least 6 characters';
@@ -258,15 +258,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               const SizedBox(height: 30),
                               
                               CustomButton(
-                                text: 'Sign In / Gal',
+                                text: 'Sign In',
                                 onPressed: _signIn,
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(double.infinity, 50),
+                                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Helpers.triggerHapticLight();
+                                  context.go(AppRoutes.register);
+                                },
+                                child: const Text(
+                                  'Create New Account',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ),
                       
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+                      
+                      // Sign up routing link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Don't have an account? ",
+                            style: TextStyle(
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Helpers.triggerHapticLight();
+                              context.go(AppRoutes.register);
+                            },
+                            child: const Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 24),
                       
                       // Tester accounts quick fill section
                       Container(
@@ -320,7 +371,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
-                                    onPressed: () => _quickFill('saeed@abaarso.com', 'admin123'),
+                                    onPressed: () => _quickFill('zakaria@abaarso.com', 'zakaria123'),
                                     icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
                                     label: const Text(
                                       'Admin',
